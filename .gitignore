@@ -1,0 +1,23 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Virtualenv
+venv/
+ENV/
+.venv/
+
+# Data
+data/*
+!data/sampledocs/

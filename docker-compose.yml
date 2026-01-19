@@ -1,0 +1,116 @@
+# Genia AI Agent - Configuracion Docker Compose
+# Configuracion multi-contenedor para backend y frontend
+
+services:
+  # Backend FastAPI con Agente RAG
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: genia-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Configuracion OpenAI (Alternativa local)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-api-key}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+
+      # Azure OpenAI (Para migracion)
+      - USE_AZURE_OPENAI=${USE_AZURE_OPENAI:-false}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME:-}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+
+      # Parametros del Agente
+      - AGENT_TEMPERATURE=${AGENT_TEMPERATURE:-0.0}
+      - AGENT_MAX_TOKENS=${AGENT_MAX_TOKENS:-1500}
+      - MEMORY_WINDOW_K=${MEMORY_WINDOW_K:-10}
+
+      # Azure Blob Storage (Para migracion)
+      - USE_AZURE_BLOB=${USE_AZURE_BLOB:-false}
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING:-}
+      - AZURE_STORAGE_CONTAINER_NAME=${AZURE_STORAGE_CONTAINER_NAME:-genia-documents}
+
+      # Azure Cosmos DB (Para migracion)
+      - USE_AZURE_COSMOS=${USE_AZURE_COSMOS:-false}
+      - AZURE_COSMOS_ENDPOINT=${AZURE_COSMOS_ENDPOINT:-}
+      - AZURE_COSMOS_KEY=${AZURE_COSMOS_KEY:-}
+      - AZURE_COSMOS_DATABASE=${AZURE_COSMOS_DATABASE:-genia}
+      - AZURE_COSMOS_CONTAINER=${AZURE_COSMOS_CONTAINER:-conversations}
+      - AZURE_COSMOS_DOCUMENTS_CONTAINER=${AZURE_COSMOS_DOCUMENTS_CONTAINER:-documents}
+
+      # Rutas de almacenamiento local
+      - LOCAL_STORAGE_PATH=/app/data/documents
+      - LOCAL_VECTOR_STORE_PATH=/app/data/vector_store
+
+      # Parametros RAG
+      - CHUNK_SIZE=${CHUNK_SIZE:-1500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-300}
+      - SEARCH_K_RETRIEVAL=${SEARCH_K_RETRIEVAL:-5}
+
+      # Azure AI Search (Para migracion de Vector Store)
+      - USE_AZURE_SEARCH=${USE_AZURE_SEARCH:-false}
+      - AZURE_SEARCH_ENDPOINT=${AZURE_SEARCH_ENDPOINT:-}
+      - AZURE_SEARCH_KEY=${AZURE_SEARCH_KEY:-}
+      - AZURE_SEARCH_INDEX_NAME=${AZURE_SEARCH_INDEX_NAME:-genia-documents}
+
+      # Azure AI Search - Modo Indexador
+      - USE_AZURE_SEARCH_INDEXER_MODE=${USE_AZURE_SEARCH_INDEXER_MODE:-false}
+      - AZURE_SEARCH_INDEXER_NAME=${AZURE_SEARCH_INDEXER_NAME:-genia-indexer}
+      - AZURE_SEARCH_VECTOR_FIELD=${AZURE_SEARCH_VECTOR_FIELD:-text_vector}
+      - AZURE_SEARCH_CONTENT_FIELD=${AZURE_SEARCH_CONTENT_FIELD:-chunk}
+      - AZURE_SEARCH_TITLE_FIELD=${AZURE_SEARCH_TITLE_FIELD:-title}
+
+      # Modelo de Embeddings
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+
+      # Modo Debug
+      - DEBUG=${DEBUG:-true}
+    volumes:
+      - ./data/documents:/app/data/documents
+      - ./data/vectorstore:/app/data/vector_store
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - genia-network
+
+  # Frontend Streamlit
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: genia-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8501/_stcore/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - genia-network
+
+# Volumenes con nombre para persistencia de datos
+volumes:
+  genia-documents:
+    driver: local
+  genia-vectorstore:
+    driver: local
+
+# Red para comunicacion entre servicios
+networks:
+  genia-network:
+    driver: bridge

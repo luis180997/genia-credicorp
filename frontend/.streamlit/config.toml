@@ -1,0 +1,10 @@
+[theme]
+# Tema oscuro corporativo para Genia
+primaryColor = "#4a90d9"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
+font = "sans serif"
+
+[server]
+maxUploadSize = 50 # Cambia este valor para modificar el límite (en MB)
